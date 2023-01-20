@@ -33,11 +33,15 @@ const userSchema = joi.object({
 // db = mongoClient.db("DIRETORIOOOO");
 // const talCollection = db.collection("COLLECTIONNNNN");
 
-
+// valida signup
+const loginSchema = joi.object({
+    email: joi.string().email().required(),
+    password: joi.string().required(),
+})
 
 app.post("/sign-up", async (req,res) => {
     const { name, email, password, confirmPassword } = req.body //recebe parametro name a ser cadastrado
-    const userValidate = userSchema.validate({name, email, password, confirmPassword}) //validaçao 422
+    const userValidate = userSchema.validate({name, email, password, confirmPassword}, {abortEarly:false}) //validaçao 422
     if (userValidate.error){
         return res.sendStatus(422)
     }
@@ -59,6 +63,12 @@ app.post("/sign-up", async (req,res) => {
 
 app.post("/sign-in", async (req,res) => {
     const { email, password } = req.body;
+    //validacao email password
+    const loginValidate = loginSchema.validate({email,password}, {abortEarly: false});
+    if (loginValidate.error){
+        return res.sendStatus(422)
+    }
+
     const user = await db.collection('user').findOne({email})
     if (!user) return res.status(401).send("E-mail não cadastrado!")
 
