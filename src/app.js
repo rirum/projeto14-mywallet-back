@@ -39,11 +39,16 @@ const loginSchema = joi.object({
     password: joi.string().required(),
 })
 
+// ROTAS:
+//cadastro
+
 app.post("/sign-up", async (req,res) => {
     const { name, email, password, confirmPassword } = req.body //recebe parametro name a ser cadastrado
     const userValidate = userSchema.validate({name, email, password, confirmPassword}, {abortEarly:false}) //validaçao 422
+    
     if (userValidate.error){
-        return res.sendStatus(422)
+        const errors = userValidate.details.map(detail => detail.message);
+        return res.status(422).send(errors);
     }
 
     try {
@@ -52,7 +57,7 @@ app.post("/sign-up", async (req,res) => {
             res.status(409).send("Este usuário já existe") 
         }  //impedir cadastro de usuario ja existente
 
-       await db.collection('user').insertOne({name, email, password:bcrypt.hashSync(password,10)})
+       await db.collection('user').insertOne({name, email, password:bcrypt.hashSync(password,10), transactions:[]})
         res.status(201).send("ok") //retornar status 201 pode retirar esse send ok 
     } catch (err) {
         console.log(err)
@@ -60,7 +65,7 @@ app.post("/sign-up", async (req,res) => {
     }
 })
 
-
+//login
 app.post("/sign-in", async (req,res) => {
     const { email, password } = req.body;
     //validacao email password
@@ -86,7 +91,8 @@ app.post("/sign-in", async (req,res) => {
     //necessario tratar erro no input
 });
 
-// ROTAS:
+//transaçoes
+//get e post
 
 const PORT = 5000;
 app.listen(PORT, () => {
