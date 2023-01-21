@@ -45,21 +45,32 @@ const loginSchema = joi.object({
 app.post("/sign-up", async (req,res) => {
     const { name, email, password, confirmPassword } = req.body //recebe parametro name a ser cadastrado
     const userValidate = userSchema.validate({name, email, password, confirmPassword}, {abortEarly:false}) //validaçao 422
-    
+    // const user = {
+    //     name: name,
+    //     email: email,
+    //     password: password,
+    //     transaction: []
+    // }
+
     if (userValidate.error){
-        const errors = userValidate.details.map(detail => detail.message);
-        return res.status(422).send(errors);
-    }
+       return res.sendStatus(422);
+        }
 
     try {
-        // const userExist = await db.collection("user").findOne({name})
+        
         if (await db.collection('user').findOne({email})){
-            res.status(409).send("Este usuário já existe") 
-        }  //impedir cadastro de usuario ja existente
+                return res.status(409).send("Esse usuário já existe")
+        }
 
-       await db.collection('user').insertOne({name, email, password:bcrypt.hashSync(password,10), transactions:[]})
-        res.status(201).send("ok") //retornar status 201 pode retirar esse send ok 
-    } catch (err) {
+    const saltPassword = bcrypt.hashSync(password, 10);
+    await db.collection('user').insertOne({
+        name,
+        email,
+        password: saltPassword,
+        transaction: []
+    });
+    res.send(201).status("ok")
+        } catch (err) {
         console.log(err)
         res.status(500).send("Deu algo errado no cadastro")
     }
@@ -68,17 +79,16 @@ app.post("/sign-up", async (req,res) => {
 //login
 app.post("/sign-in", async (req,res) => {
     const { email, password } = req.body;
-    //validacao email password
     const loginValidate = loginSchema.validate({email,password}, {abortEarly: false});
+
     if (loginValidate.error){
         return res.sendStatus(422)
     }
-
     const user = await db.collection('user').findOne({email})
-    if (!user) return res.status(401).send("E-mail não cadastrado!")
+    if (!user) return res.status(401).send("E-mail não cadastrado!") //mudar para senha ou usuario incorretos
 
     const checkPassword = await bcrypt.compare(password, user.password);
-    if (!checkPassword) return res.status(401).send("Senha incorreta!")
+    if (!checkPassword) return res.status(401).send("Senha incorreta!") //musar para senha ou usuario incorretos    
 
     const token = uuidV4();
     const sessionInfo = {
@@ -88,7 +98,7 @@ app.post("/sign-in", async (req,res) => {
 
     await db.collection('session').insertOne(sessionInfo);
     return res.send({token, name: user.name});
-    //necessario tratar erro no input
+  
 });
 
 //transaçoes
