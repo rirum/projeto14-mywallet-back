@@ -45,12 +45,7 @@ const loginSchema = joi.object({
 app.post("/sign-up", async (req,res) => {
     const { name, email, password, confirmPassword } = req.body //recebe parametro name a ser cadastrado
     const userValidate = userSchema.validate({name, email, password, confirmPassword}, {abortEarly:false}) //validaçao 422
-    // const user = {
-    //     name: name,
-    //     email: email,
-    //     password: password,
-    //     transaction: []
-    // }
+ 
 
     if (userValidate.error){
        return res.sendStatus(422);
@@ -67,7 +62,7 @@ app.post("/sign-up", async (req,res) => {
         name,
         email,
         password: saltPassword,
-        transaction: []
+        
     });
     res.send(201).status("ok")
         } catch (err) {
@@ -84,7 +79,7 @@ app.post("/sign-in", async (req,res) => {
     if (loginValidate.error){
         return res.sendStatus(422)
     }
-    const user = await db.collection('user').findOne({email})
+    const user = await db.collection("user").findOne({email});
     if (!user) return res.status(401).send("E-mail não cadastrado!") //mudar para senha ou usuario incorretos
 
     const checkPassword = await bcrypt.compare(password, user.password);
@@ -103,6 +98,55 @@ app.post("/sign-in", async (req,res) => {
 
 //transaçoes
 //get e post
+
+
+app.get("/transactions", async(req,res) => {
+    const userId = req.headers.user;
+
+    const user = await db.collection("user").findOne({_id: ObjectId(userId)});
+    if(!user) return res.status(401).send("Usuário não cadastrado");
+
+    const transactions = await db.collection("transaction").find({user: userId}).toArray();
+    let totalBalance = 0;
+
+    transactions.forEach((element) => {
+        let valor = Number(element.value);
+        if (element.type ==="entry") {
+            totalBalance = totalBalance + valor;
+        } else {
+            totalBalance = totalBalance - valor;
+        }
+    });
+
+    const result = {
+        totalBalance: totalBalance,
+        transactions: transactions.reverse(),
+    };
+
+    return res.status(200).send(result);
+})
+
+app.post("/transaction", async(req,res) => {
+    const transaction = req.body;
+
+    let date = new Date(Date.now());
+
+    let month = (date.getMonth() +1).toString().padStart(2, "0");
+    let day = (date.getMonth() +1).toString().padStart(2, "0");
+
+    date = day + "/" + month;
+
+    transaction.date = date;
+
+    const user = await db.collection("user").findOne({ _id:ObjectId(transaction.user)});
+
+    if (!user) return res.status(401).send("Usuário não cadastrado");
+
+    await db.collection("transaction").insertOne(transaction);
+
+    return res.sendStatus(201);
+});
+
 
 const PORT = 5000;
 app.listen(PORT, () => {
